@@ -123,6 +123,15 @@ async function run() {
       res.send(result);
     })
 
+  
+
+    app.delete('/menu/:id', verifyJwt, verifyAdmin, async(req, res) =>{
+        const id = req.params.id;
+        const query = {_id: new ObjectId(id)}
+        const result = await menuCollection.deleteOne(query);
+        res.send(result);
+    })
+
     // review related Apis
     app.post('/users', verifyJwt, verifyAdmin, async(req, res)=>{
       const users = req.body;
