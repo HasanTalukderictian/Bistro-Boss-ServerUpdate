@@ -235,9 +235,41 @@ async function run() {
          const deleteResult = await cartCollection.deleteMany(query);
 
          res.send({InsertResult, deleteResult});
-        
 
+        })
+
+    // 
+    // app.get('/admin', async(req, res) =>{
+    //   const loggedusers = await usersCollection.estimatedDocumentCount();
+    //   const products = await menuCollection.estimatedDocumentCount();
+    //   const orders = await paymentCollection.estimatedDocumentCount();
+    //   res.send({
+    //     loggedusers,
+    //     products,
+    //     orders
+    //   })
+    // })     
+    app.get('/admin-stats', verifyJwt, verifyAdmin, async (req, res) => {
+      const users = await usersCollection.estimatedDocumentCount();
+      const products = await menuCollection.estimatedDocumentCount();
+      const orders = await paymentCollection.estimatedDocumentCount();
+      const payments = await paymentCollection.find().toArray();
+
+      //
+      const revenue = payments.reduce( ( sum, payment) => sum + payment.price, 0)
+      const totalRevenue =  parseFloat(revenue).toFixed(2)
+
+      res.send({
+        totalRevenue,
+        users,
+        products,
+        orders
+      })
     })
+
+
+
+   
 
 
     await client.db("admin").command({ ping: 1 });
