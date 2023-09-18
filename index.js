@@ -6,12 +6,41 @@ require('dotenv').config()
 const stripe  = require('stripe')(process.env.PAYMENT_SCRCET_KEY);
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 5000;
+const nodemailer = require("nodemailer");
 
 
 
 // middleware 
 app.use(cors());
 app.use(express.json())
+
+
+// send email confirmation email use nodemailer -------------
+const sendConfirmationEmail = payment => {
+  transporter.sendMail({
+    from: "hasantalukdercou@gmail.com", // verified sender email
+    to: payment.email, // recipient email
+    subject: "Your Order is Confirmed, Enjoy the Food!!", // Subject line
+    text: "Hello world!", // plain text body
+    html: `<div><h2>Your Payment is Confirmed</h2> </div>`, // html body
+  }, function(error, info){
+    if (error) {
+      console.log(error);
+    } else {
+      console.log('Email sent: ' + info.response);
+    }
+  })
+ 
+}
+
+let transporter = nodemailer.createTransport({
+  host: 'smtp.sendgrid.net',
+  port: 587,
+  auth: {
+      user: "apikey",
+      pass: process.env.SENDGRID_API_KEY
+  }
+})
 
 // verify Jwt token Create Middle Ware
 
@@ -213,7 +242,7 @@ async function run() {
     // create payment intent 
     app.post('/create-payment-intent', verifyJwt, async(req, res) =>{
         const {price} = req.body;
-        const amount  = price*100;
+        const amount  = parseInt(price*100);
         // console.log(price, amount);
         const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
@@ -233,6 +262,11 @@ async function run() {
          const InsertResult = await paymentCollection.insertOne(payment);
          const query = { _id: { $in: payment.cartItems.map( id => new ObjectId(id) )}}
          const deleteResult = await cartCollection.deleteMany(query);
+          
+
+         // send an email formconfirming paymnet
+
+         sendConfirmationEmail(payment);
 
          res.send({InsertResult, deleteResult});
 
@@ -267,7 +301,40 @@ async function run() {
       })
     })
 
+    app.get('/order-stats', verifyJwt,verifyAdmin, async(req, res) =>{
+      const pipeline = [
+        {
+          $lookup: {
+            from: 'menu',
+            localField: 'menuItems',
+            foreignField: '_id',
+            as: 'menuItemsData'
+          }
+        },
+        {
+          $unwind: '$menuItemsData'
+        },
+        {
+          $group: {
+            _id: '$menuItemsData.category',
+            count: { $sum: 1 },
+            total: { $sum: '$menuItemsData.price' }
+          }
+        },
+        {
+          $project: {
+            category: '$_id',
+            count: 1,
+            total: { $round: ['$total', 2] },
+            _id: 0
+          }
+        }
+      ];
 
+      const result = await paymentCollection.aggregate(pipeline).toArray()
+      res.send(result)
+
+    })
 
    
 
