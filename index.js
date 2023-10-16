@@ -7,6 +7,8 @@ const stripe  = require('stripe')(process.env.PAYMENT_SCRCET_KEY);
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 5000;
 const nodemailer = require("nodemailer");
+const mg = require('nodemailer-mailgun-transport');
+
 
 
 
@@ -19,10 +21,13 @@ app.use(express.json())
 const sendConfirmationEmail = payment => {
   transporter.sendMail({
     from: "hasantalukdercou@gmail.com", // verified sender email
-    to: payment.email, // recipient email
+    to: "hasantalukdercou@gmail.com", // recipient email
     subject: "Your Order is Confirmed, Enjoy the Food!!", // Subject line
     text: "Hello world!", // plain text body
-    html: `<div><h2>Your Payment is Confirmed</h2> </div>`, // html body
+    html: `<div>
+    <h2>Your Payment is Confirmed</h2>
+    <p> Your Payment Id ${payment.transactionId}</p>
+     </div>`, // html body
   }, function(error, info){
     if (error) {
       console.log(error);
@@ -33,14 +38,23 @@ const sendConfirmationEmail = payment => {
  
 }
 
-let transporter = nodemailer.createTransport({
-  host: 'smtp.sendgrid.net',
-  port: 587,
+// let transporter = nodemailer.createTransport({
+//   host: 'smtp.sendgrid.net',
+//   port: 587,
+//   auth: {
+//       user: "apikey",
+//       pass: process.env.SENDGRID_API_KEY
+//   }
+// })
+
+const auth = {
   auth: {
-      user: "apikey",
-      pass: process.env.SENDGRID_API_KEY
+    api_key: process.env.EMAIL_PRIVATE_KEY,
+    domain:  process.env.EMAIL_DOMAIN,
   }
-})
+}
+
+const transporter = nodemailer.createTransport(mg(auth));
 
 // verify Jwt token Create Middle Ware
 
